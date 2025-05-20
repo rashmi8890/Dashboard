@@ -50,14 +50,40 @@ def explore_custom_plot(df):
         st.warning("Not enough columns to plot.")
         return
 
-    all_cols = df.columns.tolist()
-    x = st.selectbox("Select X-axis", all_cols, key="x_custom")
-    y = st.selectbox("Select Y-axis", all_cols, key="y_custom")
-    chart_type = st.radio("Chart Type", ["Scatter", "Bar", "Line"], key="chart_type_custom")
+    # Detect numeric and categorical columns
+    numeric_cols = df.select_dtypes(include=["int", "float"]).columns.tolist()
+    categorical_cols = df.select_dtypes(include=['object', 'category']).columns
 
-    color_col = st.selectbox("🎨 Optional Color/Group By Column", ["None"] + all_cols, index=0, key="color_by")
+    # Step 1: Choose Chart Type First
+    chart_type = st.radio("Choose Chart Type", ["Scatter", "Bar"], key="chart_type_custom")
+
+    # Step 2: Filter column options based on chart type
+    if chart_type == "Scatter":
+        if len(numeric_cols) < 2:
+            st.warning("Need at least 2 numeric columns for a scatter plot.")
+            return
+        x_options, y_options = numeric_cols, numeric_cols
+    elif chart_type == "Bar":
+        if len(categorical_cols) == 0 or len(numeric_cols) == 0:
+            st.warning("Need at least one categorical and one numeric column for a bar plot.")
+            return
+        x_options, y_options = categorical_cols, numeric_cols
+    else:  # Line chart
+        if not numeric_cols:
+            st.warning("Need numeric data for a line plot.")
+            return
+        x_options = df.columns.tolist()  # could be time or ordered category
+        y_options = numeric_cols
+
+    # Step 3: Select X and Y axes
+    x = st.selectbox("Select X-axis", x_options, key="x_axis")
+    y = st.selectbox("Select Y-axis", y_options, key="y_axis")
+
+    # Step 4: Optional Color Grouping
+    color_col = st.selectbox("🎨 Optional Color/Group By Column", ["None"] + df.columns.tolist(), index=0, key="color_by")
     color_by = None if color_col == "None" else color_col
 
+    # Step 5: Prepare Data and Plot
     try:
         df[y] = pd.to_numeric(df[y], errors='coerce')
     except:
